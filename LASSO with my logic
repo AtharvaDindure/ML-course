@@ -1,0 +1,26 @@
+from gekko import GEKKO
+import numpy as np
+m = GEKKO()  # GEKKO model instance
+# Matrices and vectors
+lamb=1
+Q = np.array([[17.9048, 53.754], [53.754, 161.382]])
+r = 141.6279
+P = np.array([[-71.6584],[-215.1352]])
+# Inequality constraints
+A = np.array([[1,1],
+              [-1,1],
+              [1,-1],
+              [-1,-1]])
+b = np.array([[1/lamb],[1/lamb],[1/lamb],[1/lamb]])
+# Decision variables
+z = m.Array(m.Var, 2)
+# Objective function: z^T G z
+m.Obj(0.5 * sum([z[i] * Q[i, j] * z[j] for i in range(2) for j in range(2)])+r+sum([z[i] *P[i,0] for i in range(2)]))
+# Inequality constraints: P @ z <= q
+for i in range(4):
+    m.Equation(sum([ A[i, j] * z[j] for j in range(2)]) <= b[i, 0])
+# Solve the optimization
+m.solve(disp=False)
+# Output result
+print('optimal x =', [zi.value[0] for zi in z])
+print('optimal value =', m.options.objfcnval)
