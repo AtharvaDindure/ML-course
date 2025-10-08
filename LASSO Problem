@@ -1,0 +1,50 @@
+from gekko import GEKKO
+import numpy as np
+
+# --- data (use your X and y)
+XtX = np.array([[8.9524, 26.877],
+                [26.877, 80.691]])
+XtY = np.array([35.8292, 107.5676])
+
+lam = 0.1  # lambda
+
+m = GEKKO(remote=False)    # remote=False if you want to run locally
+
+# decision vars: theta1, theta2 and u1, u2
+theta = [m.Var(value=0, lb=-100, ub=100) for _ in range(2)]
+u = [m.Var(value=0, lb=0, ub=100) for _ in range(2)]
+
+# quadratic term: 0.5 * theta^T * XtX * theta
+quad = 0
+for i in range(2):
+    for j in range(2):
+        quad += 0.5 * theta[i] * XtX[i, j] * theta[j]
+
+# linear term: - (X^T y)^T theta
+lin = 0
+for i in range(2):
+    lin += - XtY[i] * theta[i]
+
+# l1 term via u
+l1 = lam * (u[0] + u[1])
+
+# Objective: quad + lin + l1  (constant 0.5*y^T y omitted — doesn't affect optimizer)
+m.Obj( quad + lin + l1 )
+
+# Constraints: -u_i <= theta_i <= u_i  (i.e. theta_i - u_i <= 0 and -theta_i - u_i <= 0)
+for i in range(2):
+    m.Equation( theta[i] - u[i] <= 0 )
+    m.Equation( -theta[i] - u[i] <= 0 )
+    # u[i] already has lb=0, so u>=0 is satisfied
+
+# Optionally choose solver settings (APOPT/other)
+m.options.SOLVER = 1   # APOPT (nonlinear capable). For QP you can still use it.
+m.options.MAX_ITER = 500
+
+m.solve(disp=False)  # set disp=True to see solver output
+
+theta_val = [t.value[0] for t in theta]
+obj = m.options.objfcnval
+
+print("theta:", theta_val)
+print("objective value:", obj)
